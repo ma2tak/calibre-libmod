@@ -1481,23 +1481,26 @@ class DB:
     def construct_path_name(self, book_id, title, author):
         '''
         Construct the directory name for this book based on its metadata.
+        Title only format is used, with numeric suffix for collision handling.
         '''
         book_id = BOOK_ID_PATH_TEMPLATE.format(book_id)
         l = self.PATH_LIMIT - (len(book_id) // 2) - 2
-        author = ascii_filename(author)[:l]
-        title  = ascii_filename(title.lstrip())[:l].rstrip()
+        title = ascii_filename(title.lstrip())[:l].rstrip()
         if not title:
             title = 'Unknown'[:l]
-        try:
-            while author[-1] in (' ', '.'):
-                author = author[:-1]
-        except IndexError:
-            author = ''
-        if not author:
-            author = ascii_filename(_('Unknown'))
-        if author.upper() in WINDOWS_RESERVED_NAMES:
-            author += 'w'
-        return f'{author}/{title}{book_id}'
+        
+        # Check if directory already exists and append number if needed
+        base_path = title
+        path = base_path
+        counter = 1
+        while os.path.exists(os.path.join(self.library_path, path)):
+            path = f"{base_path}_{counter}"
+            counter += 1
+            
+        if path.upper() in WINDOWS_RESERVED_NAMES:
+            path += 'w'
+            
+        return path + book_id
 
     def construct_file_name(self, book_id, title, author, extlen):
         '''
@@ -1622,10 +1625,9 @@ class DB:
                     return fmt_path
 
     def cover_abspath(self, book_id, path):
-        path = os.path.join(self.library_path, path)
-        fmt_path = os.path.join(path, COVER_FILE_NAME)
-        if os.path.exists(fmt_path):
-            return fmt_path
+        path = os.path.abspath(os.path.join(self.library_path, path, COVER_FILE_NAME))
+        if os.path.exists(path):
+            return path
 
     def is_path_inside_book_dir(self, path, book_relpath, sub_path):
         book_path = os.path.abspath(os.path.join(self.library_path, book_relpath, sub_path))
