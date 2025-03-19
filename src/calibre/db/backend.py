@@ -56,12 +56,7 @@ from calibre.utils.config import from_json, prefs, to_json, tweaks
 from calibre.utils.copy_files import copy_files, copy_tree, rename_files, windows_check_if_files_in_use
 from calibre.utils.date import EPOCH, parse_date, utcfromtimestamp, utcnow
 from calibre.utils.filenames import (
-    ascii_filename,
-    atomic_rename,
-    copyfile_using_links,
-    copytree_using_links,
     get_long_path_name,
-    hardlink_file,
     is_case_sensitive,
     is_fat_filesystem,
     make_long_path_useable,
@@ -1481,48 +1476,30 @@ class DB:
     def construct_path_name(self, book_id, title, author):
         '''
         Construct the directory name for this book based on its metadata.
-        Title only format is used, with numeric suffix for collision handling.
+        Uses the original title without modification.
         '''
-        book_id = BOOK_ID_PATH_TEMPLATE.format(book_id)
-        l = self.PATH_LIMIT - (len(book_id) // 2) - 2
-        title = ascii_filename(title.lstrip())[:l].rstrip()
-        if not title:
-            title = 'Unknown'[:l]
+        base_name = title.strip()
+        if not base_name:
+            base_name = 'Unknown'
         
-        # Check if directory already exists and append number if needed
-        base_path = title
-        path = base_path
+        # Handle name collisions by appending _number
+        path = base_name
         counter = 1
         while os.path.exists(os.path.join(self.library_path, path)):
-            path = f"{base_path}_{counter}"
+            path = f"{base_name}_{counter}"
             counter += 1
-            
+        
         if path.upper() in WINDOWS_RESERVED_NAMES:
             path += 'w'
-            
-        return path + book_id
+        return path
 
     def construct_file_name(self, book_id, title, author, extlen):
         '''
         Construct the file name for this book based on its metadata.
         '''
-        extlen = max(extlen, 14)  # 14 accounts for ORIGINAL_EPUB
-        # The PATH_LIMIT on windows already takes into account the doubling
-        # (it is used to enforce the total path length limit, individual path
-        # components can be much longer than the total path length would allow on
-        # windows).
-        l = (self.PATH_LIMIT - (extlen // 2) - 2) if iswindows else ((self.PATH_LIMIT - extlen - 2) // 2)
-        if l < 5:
-            raise ValueError(f'Extension length too long: {extlen}')
-        author = ascii_filename(author)[:l]
-        title  = ascii_filename(title.lstrip())[:l].rstrip()
-        if not title:
-            title = 'Unknown'[:l]
-        name   = title + ' - ' + author
-        while name.endswith('.'):
-            name = name[:-1]
+        name = title.strip()
         if not name:
-            name = ascii_filename(_('Unknown'))
+            name = 'Unknown'
         return name
 
     # Database layer API {{{
@@ -1898,7 +1875,7 @@ class DB:
                 os.replace(stream, dest)
             except OSError:
                 if iswindows:
-                    time.sleep(1)
+                    time.sleep(0.2)
                     os.replace(stream, dest)
                 else:
                     raise
