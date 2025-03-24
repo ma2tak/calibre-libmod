@@ -170,6 +170,9 @@ class Metadata:
         if field in SIMPLE_SET:
             if val is None:
                 val = copy.copy(NULL_VALUES.get(field, None))
+            # タイトルの場合、コロンを全角に変換
+            if field == 'title' and isinstance(val, string_or_bytes):
+                val = val.replace(':', '：')
             _data[field] = val
         elif field in TOP_LEVEL_IDENTIFIERS:
             field, val = self._clean_identifier(field, val)

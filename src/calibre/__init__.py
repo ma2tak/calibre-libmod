@@ -141,6 +141,8 @@ def sanitize_file_name(name, substitute='_'):
         name = name.decode(filesystem_encoding, 'replace')
     if isbytestring(substitute):
         substitute = substitute.decode(filesystem_encoding, 'replace')
+    # コロンを全角コロンに置換
+    name = name.replace(':', '：')
     chars = (substitute if c in _filename_sanitize_unicode else c for c in name)
     one = ''.join(chars)
     one = re.sub(r'\s', ' ', one).strip()
