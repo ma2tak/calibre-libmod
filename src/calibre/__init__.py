@@ -129,6 +129,27 @@ _filename_sanitize_unicode = frozenset(('\\', '|', '?', '*', '<',        # no2to
     '"', ':', '>', '+', '/') + tuple(map(codepoint_to_chr, range(32))))  # no2to3
 
 
+
+def change_to_zenkaku(name):
+    replacements = {
+        ':': '：',
+        '/': '／',
+        '\\': '＼',
+        '+': '＋',
+        '*': '＊',
+        '?': '？',
+        '<': '＜',
+        '>': '＞',
+        '|': '｜',
+        '"': '”',
+    }
+
+    for old_char, new_char in replacements.items():
+        name = name.replace(old_char, new_char)
+
+    return name
+
+
 def sanitize_file_name(name, substitute='_'):
     '''
     Sanitize the filename `name`. All invalid characters are replaced by `substitute`.
@@ -141,8 +162,8 @@ def sanitize_file_name(name, substitute='_'):
         name = name.decode(filesystem_encoding, 'replace')
     if isbytestring(substitute):
         substitute = substitute.decode(filesystem_encoding, 'replace')
-    # コロンを全角コロンに置換
-    name = name.replace(':', '：')
+
+    name = change_to_zenkaku(name)
     chars = (substitute if c in _filename_sanitize_unicode else c for c in name)
     one = ''.join(chars)
     one = re.sub(r'\s', ' ', one).strip()

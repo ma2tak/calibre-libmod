@@ -165,6 +165,26 @@ class Metadata:
         raise AttributeError(
                 'Metadata object has no attribute named: '+ repr(field))
 
+    def change_to_zenkaku(self, name):
+        replacements = {
+            ':': '：',
+            '/': '／',
+            '\\': '＼',
+            '+': '＋',
+            '*': '＊',
+            '?': '？',
+            '<': '＜',
+            '>': '＞',
+            '|': '｜',
+            '"': '”',
+        }
+
+        for old_char, new_char in replacements.items():
+            name = name.replace(old_char, new_char)
+        return name
+
+
+
     def __setattr__(self, field, val, extra=None):
         _data = object.__getattribute__(self, '_data')
         if field in SIMPLE_SET:
@@ -172,7 +192,7 @@ class Metadata:
                 val = copy.copy(NULL_VALUES.get(field, None))
             # タイトルの場合、コロンを全角に変換
             if field == 'title' and isinstance(val, string_or_bytes):
-                val = val.replace(':', '：')
+                val = self.change_to_zenkaku(val)
             _data[field] = val
         elif field in TOP_LEVEL_IDENTIFIERS:
             field, val = self._clean_identifier(field, val)
