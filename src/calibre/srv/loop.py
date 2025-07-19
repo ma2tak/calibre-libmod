@@ -256,7 +256,7 @@ class Connection:  # {{{
 
     def recv(self, amt):
         # If there is data in the read buffer we have to return only that,
-        # since we dont know if the socket has signalled it is ready for
+        # since we don't know if the socket has signalled it is ready for
         # reading
         if self.read_buffer.has_data:
             return self.read_buffer.read(amt)
@@ -550,7 +550,7 @@ class ServerLoop:
                     raise
                 except KeyboardInterrupt:
                     break
-                except:
+                except Exception:
                     self.log.exception('Error in ServerLoop.tick')
             self.shutdown()
 

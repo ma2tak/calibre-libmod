@@ -127,7 +127,7 @@ def _add_default_custom_column_values(mi, fm):
                 if dt == 'datetime' and icu_lower(dv) == 'now':
                     dv = nowf()
                 mi.set(cc, dv)
-        except:
+        except Exception:
             traceback.print_exc()
 
 
@@ -294,6 +294,12 @@ class Cache:
     def last_modified(self):
         return self.backend.last_modified()
 
+    def __enter__(self):
+        self.backend.__enter__()
+
+    def __exit__(self, exc_type, exc_value, tb):
+        self.backend.__exit__(exc_type, exc_value, tb)
+
     @write_api
     def clear_caches(self, book_ids=None, template_cache=True, search_cache=True):
         if template_cache:
@@ -373,7 +379,7 @@ class Cache:
             mi.format_metadata = FormatMetadata(self, book_id, formats)
             good_formats = FormatsList(sorted(formats), mi.format_metadata)
         # These three attributes are returned by the db2 get_metadata(),
-        # however, we dont actually use them anywhere other than templates, so
+        # however, we don't actually use them anywhere other than templates, so
         # they have been removed, to avoid unnecessary overhead. The templates
         # all use _proxy_metadata.
         # mi.book_size   = self._field_for('size', book_id, default_value=0)
@@ -528,7 +534,7 @@ class Cache:
 
     @staticmethod
     def dispatch_fts_jobs(queue, stop_dispatch, dbref):
-        from .fts.text import is_fmt_ok
+        from .fts.text import is_fmt_extractable
 
         def do_one():
             self = dbref()
@@ -542,7 +548,7 @@ class Cache:
                 if book_id is None:
                     return False
                 path = self._format_abspath(book_id, fmt)
-            if not path or not is_fmt_ok(fmt):
+            if not path or not is_fmt_extractable(fmt):
                 with self.write_lock:
                     self.backend.remove_dirty_fts(book_id, fmt)
                     self._update_fts_indexing_numbers()
@@ -716,7 +722,9 @@ class Cache:
         references resources their hashes must be present in resource_hashes. Set remove_unused_resources to True to cleanup unused
         resources, note that updating a note automatically cleans up resources pertaining to that note anyway.
         '''
-        return self.backend.set_notes_for(field, item_id, doc, searchable_text, resource_hashes, remove_unused_resources)
+        ans = self.backend.set_notes_for(field, item_id, doc, searchable_text, resource_hashes, remove_unused_resources)
+        self.event_dispatcher(EventType.notes_changed, field, frozenset({item_id}))
+        return ans
 
     @write_api
     def add_notes_resource(self, path_or_stream_or_data, name: str, mtime: float = None) -> int:
@@ -736,7 +744,9 @@ class Cache:
     @write_api
     def unretire_note_for(self, field, item_id) -> int:
         ' Unretire a previously retired note for the specified item. Notes are retired when an item is removed from the database '
-        return self.backend.unretire_note_for(field, item_id)
+        ans = self.backend.unretire_note_for(field, item_id)
+        self.event_dispatcher(EventType.notes_changed, field, frozenset({item_id}))
+        return ans
 
     @read_api
     def export_note(self, field, item_id) -> str:
@@ -756,7 +766,9 @@ class Cache:
                 st = os.stat(f.fileno())
                 ctime, mtime = st.st_ctime, st.st_mtime
             basedir = os.path.dirname(os.path.abspath(path_to_html_file))
-        return self.backend.import_note(field, item_id, html, basedir, ctime, mtime)
+        ans = self.backend.import_note(field, item_id, html, basedir, ctime, mtime)
+        self.event_dispatcher(EventType.notes_changed, field, frozenset({item_id}))
+        return ans
 
     @write_api  # we need to use write locking as SQLITE gives a locked table error if multiple FTS queries are made at the same time
     def search_notes(
@@ -991,7 +1003,7 @@ class Cache:
         try:
             name = self.fields['formats'].format_fname(book_id, fmt)
             path = self._field_for('path', book_id).replace('/', os.sep)
-        except:
+        except Exception:
             raise NoSuchFormat(f'Record {book_id} has no fmt: {fmt}')
         return self.backend.format_hash(book_id, fmt, name, path)
 
@@ -1021,7 +1033,7 @@ class Cache:
             try:
                 name = self.fields['formats'].format_fname(book_id, fmt)
                 path = self._field_for('path', book_id).replace('/', os.sep)
-            except:
+            except Exception:
                 return {}
 
             ans = {}
@@ -1244,7 +1256,7 @@ class Cache:
         fmt = (fmt or '').upper()
         try:
             path = self._field_for('path', book_id).replace('/', os.sep)
-        except:
+        except Exception:
             return None
         if path:
             if fmt == '__COVER_INTERNAL__':
@@ -1252,7 +1264,7 @@ class Cache:
             else:
                 try:
                     name = self.fields['formats'].format_fname(book_id, fmt)
-                except:
+                except Exception:
                     return None
                 if name:
                     return self.backend.format_abspath(book_id, fmt, name, path)
@@ -1264,7 +1276,7 @@ class Cache:
         try:
             name = self.fields['formats'].format_fname(book_id, fmt)
             path = self._field_for('path', book_id).replace('/', os.sep)
-        except:
+        except Exception:
             return False
         return self.backend.has_format(book_id, fmt, name, path)
 
@@ -1312,13 +1324,13 @@ class Cache:
         if verify_formats and ans:
             try:
                 path = self._field_for('path', book_id).replace('/', os.sep)
-            except:
+            except Exception:
                 return ()
 
             def verify(fmt):
                 try:
                     name = self.fields['formats'].format_fname(book_id, fmt)
-                except:
+                except Exception:
                     return False
                 return self.backend.has_format(book_id, fmt, name, path)
 
@@ -1349,7 +1361,7 @@ class Cache:
                 with self.safe_read_lock:
                     try:
                         fname = self.fields['formats'].format_fname(book_id, fmt)
-                    except:
+                    except Exception:
                         return None
                     fname += ext
 
@@ -1357,7 +1369,7 @@ class Cache:
                 d = os.path.join(bd, 'format_abspath')
                 try:
                     os.makedirs(d)
-                except:
+                except Exception:
                     pass
                 ret = os.path.join(d, fname)
                 try:
@@ -1375,7 +1387,7 @@ class Cache:
             with self.safe_read_lock:
                 try:
                     fname = self.fields['formats'].format_fname(book_id, fmt)
-                except:
+                except Exception:
                     return None
                 fname += ext
 
@@ -1691,7 +1703,7 @@ class Cache:
                 # try to write the opf, because it will go to the wrong folder.
                 if self._field_for('path', book_id):
                     mi = self._metadata_as_object_for_dump(book_id)
-            except:
+            except Exception:
                 # This almost certainly means that the book has been deleted while
                 # the backup operation sat in the queue.
                 traceback.print_exc()
@@ -1711,7 +1723,7 @@ class Cache:
     def write_backup(self, book_id, raw):
         try:
             path = self._field_for('path', book_id).replace('/', os.sep)
-        except:
+        except Exception:
             return
 
         self.backend.write_backup(path, raw)
@@ -1726,7 +1738,7 @@ class Cache:
         if no such backup exists.  '''
         try:
             path = self._field_for('path', book_id).replace('/', os.sep)
-        except:
+        except Exception:
             return
 
         try:
@@ -1762,7 +1774,7 @@ class Cache:
                 self._write_backup(book_id, raw)
                 if remove_from_dirtied:
                     self._clear_dirtied(book_id, sequence)
-            except:
+            except Exception:
                 pass
             if callback is not None:
                 callback(book_id, mi, True)
@@ -1844,7 +1856,7 @@ class Cache:
         def protected_set_field(name, val):
             try:
                 set_field(name, val)
-            except:
+            except Exception:
                 if ignore_errors:
                     traceback.print_exc()
                 else:
@@ -1858,7 +1870,7 @@ class Cache:
                     cdata = f.read() or None
             if cdata is not None:
                 self._set_cover({book_id: cdata})
-        except:
+        except Exception:
             if ignore_errors:
                 traceback.print_exc()
             else:
@@ -1913,7 +1925,7 @@ class Cache:
                                 extra = mi.get_extra(key)
                                 if extra is not None or force_changes:
                                     protected_set_field(idx, extra)
-        except:
+        except Exception:
             # sqlite will rollback the entire transaction, thanks to the with
             # statement, so we have to re-read everything form the db to ensure
             # the db and Cache are in sync
@@ -2023,12 +2035,12 @@ class Cache:
             for book_id, fmts in iteritems(formats_map):
                 try:
                     path = self._field_for('path', book_id).replace('/', os.sep)
-                except:
+                except Exception:
                     continue
                 for fmt in fmts:
                     try:
                         name = self.fields['formats'].format_fname(book_id, fmt)
-                    except:
+                    except Exception:
                         continue
                     if name and path:
                         removes[book_id].add((fmt, name, path))
@@ -2510,6 +2522,7 @@ class Cache:
         if changed_books:
             self._mark_as_dirty(changed_books)
             self._clear_link_map_cache(changed_books)
+        self.event_dispatcher(EventType.links_changed, 'authors', frozenset(author_id_to_link_map))
         return changed_books
 
     @read_api
@@ -2624,6 +2637,7 @@ class Cache:
         if changed_books:
             self._mark_as_dirty(changed_books)
             self._clear_link_map_cache(changed_books)
+        self.event_dispatcher(EventType.links_changed, field, frozenset(id_to_link_map))
         return changed_books
 
     @read_api
@@ -2711,7 +2725,7 @@ class Cache:
                 return identical_book_ids
             try:
                 book_ids = self._search(query, restriction=search_restriction, book_ids=book_ids)
-            except:
+            except Exception:
                 traceback.print_exc()
                 return identical_book_ids
             if qauthors and book_ids:
@@ -3047,14 +3061,14 @@ class Cache:
                 mi.cover_data = ('jpeg', cdata)
             try:
                 path = self._field_for('path', book_id).replace('/', os.sep)
-            except:
+            except Exception:
                 continue
             for fmt in fmts:
                 if only_fmts is not None and fmt.lower() not in only_fmts:
                     continue
                 try:
                     name = self.fields['formats'].format_fname(book_id, fmt)
-                except:
+                except Exception:
                     continue
                 if name and path:
                     try:
@@ -3308,6 +3322,10 @@ class Cache:
         self._set_annotations_for_book(book_id, fmt, alist, user_type=user_type, user=user)
 
     @write_api
+    def save_annotations_list(self, book_id: int, book_fmt: str, sync_annots_user: str, alist: list[dict]) -> None:
+        self.backend.save_annotations_list(book_id, book_fmt, sync_annots_user, alist)
+
+    @write_api
     def reindex_annotations(self):
         self.backend.reindex_annotations()
 
@@ -3315,7 +3333,7 @@ class Cache:
     def are_paths_inside_book_dir(self, book_id, paths, sub_path=''):
         try:
             path = self._field_for('path', book_id).replace('/', os.sep)
-        except:
+        except Exception:
             return set()
         return {x for x in paths if self.backend.is_path_inside_book_dir(x, path, sub_path)}
 
@@ -3474,7 +3492,7 @@ class Cache:
                         self._add_extra_files(dest_id, {q: BytesIO(cdata)}, replace=False, auto_rename=True)
                         break
 
-        for key in self.field_metadata:  # loop thru all defined fields
+        for key in self.field_metadata:  # loop through all defined fields
             fm = self.field_metadata[key]
             if not fm['is_custom']:
                 continue

@@ -193,7 +193,7 @@ class DaysOfMonth(Base):
                 x.strip()]
         try:
             days_of_month = tuple(map(int, parts))
-        except:
+        except Exception:
             days_of_month = (1,)
         if not days_of_month:
             days_of_month = (1,)
@@ -365,7 +365,9 @@ class SchedulerDialog(QDialog):
             ' of this periodical. Every time a new issue is downloaded, the oldest one is deleted, if the'
             ' total is larger than this number.\n<p>Note that this feature only works if you have the'
             ' option to add the title as tag checked, above.\n<p>Also, the setting for deleting periodicals'
-            ' older than a number of days, below, takes priority over this setting.'))
+            ' older than a number of days, below, will also cause issues to be deleted, so set that to zero if'
+            ' you want to use this setting alone.'
+            ))
         ki.setSpecialValueText(_('all issues')), ki.setSuffix(_(' issues'))
         g.addRow(_('&Keep at most:'), ki)
         self.recipe_specific_widgets = {}
@@ -419,7 +421,7 @@ class SchedulerDialog(QDialog):
             self.recipe_model.searched.disconnect(self.search.search_done)
             self.search.search.disconnect()
             self.download.disconnect()
-        except:
+        except Exception:
             pass
         self.recipe_model = None
 
@@ -516,7 +518,7 @@ class SchedulerDialog(QDialog):
         recipe = self.recipe_model.recipe_from_urn(urn)
         try:
             schedule_info = self.recipe_model.schedule_info_from_urn(urn)
-        except:
+        except Exception:
             # Happens if user does something stupid like unchecking all the
             # days of the week
             schedule_info = None
@@ -664,7 +666,7 @@ class Scheduler(QObject):
             try:
                 ids = list(db.tags_older_than(_('News'),
                     delta, must_have_authors=['calibre']))
-            except:
+            except Exception:
                 # Happens if library is being switched
                 ids = []
             if ids:

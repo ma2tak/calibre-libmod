@@ -152,13 +152,13 @@ class DisplayedFields(QAbstractListModel):
     def data(self, index, role):
         try:
             field, visible = self.fields[index.row()]
-        except:
+        except Exception:
             return None
         if role == Qt.ItemDataRole.DisplayRole:
             name = field
             try:
                 name = self.db.field_metadata[field]['name']
-            except:
+            except Exception:
                 pass
             if field == 'path':
                 name = _('Folders/path')
@@ -231,7 +231,7 @@ class LazyEditRulesBase(LazyConfigWidgetBase):
 
     def lazy_initialize(self):
         if not self.rule_set_name:
-            raise NotImplementedError('You must define the attribut "rule_set_name" in LazyEditRulesBase subclasses')
+            raise NotImplementedError('You must define the attribute "rule_set_name" in LazyEditRulesBase subclasses')
         self.load_rule_set(self.rule_set_name)
 
     def load_rule_set(self, name):
@@ -322,6 +322,6 @@ def selected_rows_metadatas():
         for row in rows:
             if row.isValid():
                 rslt.append(db.new_api.get_proxy_metadata(db.data.index_to_id(row.row())))
-    except:
+    except Exception:
         pass
     return rslt

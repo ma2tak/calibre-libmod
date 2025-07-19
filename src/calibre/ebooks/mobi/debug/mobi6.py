@@ -451,7 +451,7 @@ class CNCX:  # {{{
                     try:
                         self.records[pos+record_offset] = raw[
                             pos+consumed:pos+consumed+length].decode(codec)
-                    except:
+                    except Exception:
                         byts = raw[pos:]
                         r = format_bytes(byts)
                         print(f'CNCX entry at offset {pos + record_offset} has unknown format {r}')
@@ -612,7 +612,7 @@ class TBSIndexing:  # {{{
                 try:
                     byts, a = self.interpret_periodical(tbs_type, byts,
                         dat['geom'][0])
-                except:
+                except Exception:
                     import traceback
                     traceback.print_exc()
                     a = []
@@ -637,11 +637,11 @@ class TBSIndexing:  # {{{
                 ai, extra, consumed = decode_tbs(byts)
                 byts = byts[consumed:]
                 if extra.get(0b0010, None) is not None:
-                    raise ValueError('Dont know how to interpret flag 0b0010'
+                    raise ValueError("Don't know how to interpret flag 0b0010"
                             ' while reading section transitions')
                 if extra.get(0b1000, None) is not None:
                     if len(extra) > 1:
-                        raise ValueError('Dont know how to interpret flags'
+                        raise ValueError("Don't know how to interpret flags"
                                 f' {extra!r} while reading section transitions')
                     nsi = self.get_index(psi.index+1)
                     ans.append(
@@ -675,7 +675,7 @@ class TBSIndexing:  # {{{
             si, extra, consumed = decode_tbs(byts)
             byts = byts[consumed:]
             if len(extra) > 1 or 0b0010 in extra or 0b1000 in extra:
-                raise ValueError(f'Dont know how to interpret flags {extra!r}'
+                raise ValueError(f"Don't know how to interpret flags {extra!r}"
                         ' when reading starting section')
             si = self.get_index(si)
             ans.append('The section at the start of this record is:'
@@ -755,7 +755,7 @@ class MOBIFile:  # {{{
                     b'AUDI', b'VIDE', b'FONT', b'CRES', b'CONT', b'CMET'}:
                 try:
                     fmt = what(None, r.raw)
-                except:
+                except Exception:
                     pass
             if fmt is not None:
                 self.image_records.append(ImageRecord(image_index, r, fmt))

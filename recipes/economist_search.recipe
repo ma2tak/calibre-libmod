@@ -28,6 +28,7 @@ def process_info_box(bx):
         info += f'<blockquote>{process_node(x)}</blockquote>'
     return info
 
+
 def process_node(node):
     ntype = node.get('type', '')
     if ntype == 'CROSSHEAD':
@@ -61,7 +62,7 @@ def process_node(node):
             return process_list(node)
     elif ntype:
         print('** ', ntype)
-        return ''
+    return ''
 
 
 def safe_dict(data, *names):
@@ -153,6 +154,8 @@ class econ_search(BasicNewsRecipe):
         img {display:block; margin:0 auto;}
     '''
 
+    browser_type = 'webengine'
+
     resolve_internal_links = True
     remove_tags = [
         dict(name=['script', 'noscript', 'title', 'iframe', 'cf_floatingcontent', 'aside', 'footer', 'svg']),
@@ -184,7 +187,7 @@ class econ_search(BasicNewsRecipe):
 
     def get_browser(self, *args, **kwargs):
         kwargs['user_agent'] = (
-            'Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.6533.103 Mobile Safari/537.36 Lamarr'
+            'Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.6533.103 Mobile Safari/537.36 Liskov'
         )
         br = BasicNewsRecipe.get_browser(self, *args, **kwargs)
         return br

@@ -84,7 +84,7 @@ class CoverManager:
 
     def default_cover(self):
         '''
-        Create a generic cover for books that dont have a cover
+        Create a generic cover for books that don't have a cover
         '''
         if self.no_default_cover:
             return None
@@ -109,7 +109,7 @@ class CoverManager:
             m.add('cover', item.id)
 
             return item.href
-        except:
+        except Exception:
             self.log.exception('Failed to generate default cover')
         return None
 

@@ -472,7 +472,7 @@ class TagsModel(QAbstractItemModel):  # {{{
             path = os.path.join(self.icon_config_dir, file_name)
             try:
                 os.remove(path)
-            except:
+            except Exception:
                 pass
 
     def remove_value_icon(self, key, value, file_name):
@@ -1460,7 +1460,7 @@ class TagsModel(QAbstractItemModel):  # {{{
                     order = tweaks.get('tag_browser_category_order', {'*':1})
                     if not isinstance(order, dict):
                         raise TypeError()
-                except:
+                except Exception:
                     print('Tweak tag_browser_category_order is not valid. Ignored')
                     order = {'*': 1000}
                 defvalue = order.get('*', 1000)
@@ -1737,8 +1737,10 @@ class TagsModel(QAbstractItemModel):  # {{{
         for cat in user_cats.keys():
             new_cat = []
             for val, key, _ in user_cats[cat]:
-                datatype = cache.field_metadata.get(key, {}).get('datatype', '*****')
-                if datatype != 'composite':
+                datatype = cache.field_metadata.get(key, {}).get('datatype')
+                # datatype can be None if a column used in user categories has
+                # been deleted. Remove it from the user categories
+                if datatype is not None and datatype != 'composite':
                     id_ = cache.get_item_id(key, val, case_sensitive=True)
                     if id_ is not None:
                         v = cache.books_for_field(key, id_)

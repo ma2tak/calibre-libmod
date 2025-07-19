@@ -136,7 +136,8 @@ class ViewAction(InterfaceAction):
                 merge_annotations(other_annotations_map, annotations_map, merge_last_read=False)
         return {
             'book_id': book_id, 'uuid': db.field_for('uuid', book_id), 'fmt': fmt.upper(),
-            'annotations_map': annotations_map, 'library_id': getattr(self.gui.current_db.new_api, 'server_library_id', None)
+            'annotations_map': annotations_map, 'library_id': getattr(self.gui.current_db.new_api, 'server_library_id', None),
+            'calibre_pid': os.getpid(),
         }
 
     def view_format_by_id(self, id_, format, open_at=None):
@@ -340,7 +341,7 @@ class ViewAction(InterfaceAction):
         for id_ in ids:
             try:
                 title = db.title(id_, index_is_id=True)
-            except:
+            except Exception:
                 error_dialog(self.gui, _('Cannot view'),
                     _('This book no longer exists in your library'), show=True)
                 self.update_history([], remove={id_})

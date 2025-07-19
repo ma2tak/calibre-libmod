@@ -347,8 +347,7 @@ class Device(DeviceConfig, DevicePlugin):
     def osx_run_mount(cls):
         for i in range(3):
             try:
-                return subprocess.Popen('mount',
-                                    stdout=subprocess.PIPE).communicate()[0]
+                return subprocess.Popen('mount', stdout=subprocess.PIPE).communicate()[0].decode('utf-8', 'replace')
             except OSError:  # Probably an interrupted system call
                 if i == 2:
                     raise
@@ -551,7 +550,7 @@ class Device(DeviceConfig, DevicePlugin):
                             ok[node] = True
                         else:
                             ok[node] = False
-                    except:
+                    except Exception:
                         ok[node] = False
                     if is_debugging() and not ok[node]:
                         print(f'\nIgnoring the node: {node} as could not read size from: {sz}')
@@ -581,7 +580,7 @@ class Device(DeviceConfig, DevicePlugin):
             try:
                 with open(sz, 'rb') as szf:
                     sz = int(szf.read().decode('utf-8'))
-            except:
+            except Exception:
                 continue
             if sz > 0:
                 nodes.append((x.split('/')[-1], sz))
@@ -603,7 +602,7 @@ class Device(DeviceConfig, DevicePlugin):
                     from calibre.devices.udisks import mount
                     mount(node)
                     return 0
-                except:
+                except Exception:
                     print('Udisks mount call failed:')
                     import traceback
                     traceback.print_exc()
@@ -659,12 +658,12 @@ class Device(DeviceConfig, DevicePlugin):
             try:
                 with open(path, 'wb'):
                     ro = False
-            except:
+            except Exception:
                 pass
             else:
                 try:
                     os.remove(path)
-                except:
+                except Exception:
                     pass
             if is_debugging() and ro:
                 print('\nThe mountpoint', mp, 'is readonly, ignoring it')
@@ -696,12 +695,14 @@ class Device(DeviceConfig, DevicePlugin):
 #  open for FreeBSD
 #      find the device node or nodes that match the S/N we already have from the scanner
 #      and attempt to mount each one
-#              1.  get list of devices in /dev with matching s/n etc.
+#              1.  get list of devices via DBUS UDisk2 with matching s/n etc.
 #              2.  get list of volumes associated with each
-#              3.  attempt to mount each one using Hal
+#              3.  attempt to mount each one using UDisks2
 #              4.  when finished, we have a list of mount points and associated dbus nodes
 #
     def open_freebsd(self):
+        from calibre.devices.udisks import find_device_vols_by_serial
+
         # There should be some way to access the -v arg...
         verbose = False
 
@@ -711,17 +712,80 @@ class Device(DeviceConfig, DevicePlugin):
 
         if not d.serial:
             raise DeviceError("Device has no S/N.  Can't continue")
-        from .hal import get_hal
-        hal = get_hal()
-        vols = hal.get_volumes(d)
+
+        vols = find_device_vols_by_serial(d.serial)
+
         if verbose:
             print('FBSD:\t', vols)
 
-        ok, mv = hal.mount_volumes(vols)
+        ok, mv = self.freebsd_mount_volumes(vols)
         if not ok:
             raise DeviceError(_('Unable to mount the device'))
         for k, v in mv.items():
             setattr(self, k, v)
+
+    def freebsd_mount_volumes(self, vols):
+        def fmount(node):
+            mp = self.node_mountpoint(node)
+            if mp is not None:
+                # Already mounted
+                return mp
+
+            from calibre.devices.udisks import mount, rescan
+            for i in range(6):
+                try:
+                    mp = mount(node)
+                    break
+                except Exception:
+                    if i < 5:
+                        rescan(node)
+                        time.sleep(1)
+                    else:
+                        print('Udisks mount call failed:')
+                        import traceback
+                        traceback.print_exc()
+
+            return mp
+
+        mp = None
+        mtd = 0
+        ans = {
+            '_main_prefix': None, '_main_vol': None,
+            '_card_a_prefix': None, '_card_a_vol': None,
+            '_card_b_prefix': None, '_card_b_vol': None,
+        }
+        for vol in vols:
+            try:
+                mp = fmount(vol['Device'])
+            except Exception:
+                print('Failed to mount: ' + vol['Device'])
+                import traceback
+                traceback.print_exc()
+
+            if mp is None:
+                continue
+
+            # Mount Point becomes Mount Path
+            mp += '/'
+            DEBUG = is_debugging()
+            if DEBUG:
+                print('FBSD:\tmounted', vol['Device'], 'on', mp)
+            if mtd == 0:
+                ans['_main_prefix'], ans['_main_vol'] = mp, vol['Device']
+                if DEBUG:
+                    print('FBSD:\tmain = ', mp)
+            elif mtd == 1:
+                ans['_card_a_prefix'], ans['_card_a_vol'] = mp, vol['Device']
+                if DEBUG:
+                    print('FBSD:\tcard a = ', mp)
+            elif mtd == 2:
+                ans['_card_b_prefix'], ans['_card_b_vol'] = mp, vol['Device']
+                if DEBUG:
+                    print('FBSD:\tcard b = ', mp)
+                break
+            mtd += 1
+
+        return mtd > 0, ans
 
 #
 # ------------------------------------------------------
@@ -731,14 +795,13 @@ class Device(DeviceConfig, DevicePlugin):
 #        mounted filesystems, using the stored volume object
 #
     def eject_freebsd(self):
-        from .hal import get_hal
-        hal = get_hal()
+        from calibre.devices.udisks import umount
         if self._main_prefix:
-            hal.unmount(self._main_vol)
+            umount(self._main_vol)
         if self._card_a_prefix:
-            hal.unmount(self._card_a_vol)
+            umount(self._card_a_vol)
         if self._card_b_prefix:
-            hal.unmount(self._card_b_vol)
+            umount(self._card_b_vol)
 
         self._main_prefix = self._main_vol = None
         self._card_a_prefix = self._card_a_vol = None
@@ -786,11 +849,7 @@ class Device(DeviceConfig, DevicePlugin):
                     self.open_linux()
             if isfreebsd:
                 self._main_vol = self._card_a_vol = self._card_b_vol = None
-                try:
-                    self.open_freebsd()
-                except DeviceError:
-                    time.sleep(2)
-                    self.open_freebsd()
+                self.open_freebsd()
             if iswindows:
                 self.open_windows()
             if ismacos:
@@ -830,7 +889,7 @@ class Device(DeviceConfig, DevicePlugin):
             if x is not None:
                 try:
                     subprocess.Popen(self.OSX_EJECT_COMMAND + [x])
-                except:
+                except Exception:
                     pass
 
     def eject_linux(self):
@@ -839,7 +898,7 @@ class Device(DeviceConfig, DevicePlugin):
         for d in drives:
             try:
                 umount(d)
-            except:
+            except Exception:
                 pass
         for d in drives:
             try:
@@ -847,6 +906,9 @@ class Device(DeviceConfig, DevicePlugin):
             except Exception as e:
                 print('Udisks eject call for:', d, 'failed:')
                 print('\t', e)
+
+    def on_device_close(self):
+        pass
 
     def unmount_device(self):
         if self.connected_folder_path:
@@ -856,24 +918,25 @@ class Device(DeviceConfig, DevicePlugin):
         if islinux:
             try:
                 self.eject_linux()
-            except:
+            except Exception:
                 pass
         if isfreebsd:
             try:
                 self.eject_freebsd()
-            except:
+            except Exception:
                 pass
         if iswindows:
             try:
                 self.eject_windows()
-            except:
+            except Exception:
                 pass
         if ismacos:
             try:
                 self.eject_osx()
-            except:
+            except Exception:
                 pass
         self._main_prefix = self._card_a_prefix = self._card_b_prefix = None
+        self.on_device_close()
 
     def linux_post_yank(self):
         self._linux_mount_map = {}
@@ -882,10 +945,11 @@ class Device(DeviceConfig, DevicePlugin):
         if islinux:
             try:
                 self.linux_post_yank()
-            except:
+            except Exception:
                 import traceback
                 traceback.print_exc()
         self._main_prefix = self._card_a_prefix = self._card_b_prefix = None
+        self.on_device_close()
 
     def get_main_ebook_dir(self, for_upload=False):
         return self.EBOOK_DIR_MAIN

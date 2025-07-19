@@ -25,7 +25,7 @@ def process_jpegs_for_amazon(data: bytes) -> bytes:
     img = Image.open(BytesIO(data))
     if img.format == 'JPEG':
         # Amazon's MOBI renderer can't render JPEG images without JFIF metadata
-        # and images with EXIF data dont get displayed on the cover screen
+        # and images with EXIF data don't get displayed on the cover screen
         changed = not img.info
         has_exif = False
         if hasattr(img, 'getexif'):
@@ -132,7 +132,7 @@ class Resources:
                     self.used_image_indices.add(self.cover_offset)
                     try:
                         tdata = rescale_image(data, dimen=MAX_THUMB_DIMEN, maxsizeb=MAX_THUMB_SIZE)
-                    except:
+                    except Exception:
                         self.log.warn('Failed to generate thumbnail')
                     else:
                         self.image_indices.add(len(self.records))
@@ -168,7 +168,7 @@ class Resources:
                 continue
             try:
                 data = self.process_image(item.data)
-            except:
+            except Exception:
                 self.log.warn(f'Bad image file {item.href!r}')
             else:
                 self.records.append(data)

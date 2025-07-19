@@ -50,7 +50,7 @@ from calibre.ebooks.oeb.polish.parsing import decode_xml
 from calibre.ebooks.oeb.polish.parsing import parse as parse_html_tweak
 from calibre.ebooks.oeb.polish.utils import OEB_FONTS, CommentFinder, PositionFinder, adjust_mime_for_epub, guess_type, insert_self_closing, parse_css
 from calibre.ptempfile import PersistentTemporaryDirectory, PersistentTemporaryFile, TemporaryDirectory
-from calibre.utils.filenames import hardlink_file, nlinks_file, retry_on_fail
+from calibre.utils.filenames import hardlink_file, make_long_path_useable, nlinks_file, retry_on_fail
 from calibre.utils.ipc.simple_worker import WorkerError, fork_job
 from calibre.utils.logging import default_log
 from calibre.utils.xml_parse import safe_xml_fromstring
@@ -81,7 +81,7 @@ def clone_dir(src, dest):
         else:
             try:
                 hardlink_file(spath, dpath)
-            except:
+            except Exception:
                 shutil.copy2(spath, dpath)
 
 
@@ -90,9 +90,7 @@ def clone_container(container, dest_dir, container_class=None):
     dest_dir = os.path.abspath(os.path.realpath(dest_dir))
     clone_data = container.clone_data(dest_dir)
     container_class = container_class or type(container)
-    if container_class is Container:
-        return container_class(None, None, container.log, clone_data=clone_data)
-    return container_class(None, container.log, clone_data=clone_data)
+    return container_class(log=container.log, clone_data=clone_data)
 
 
 def name_to_abspath(name, root):
@@ -151,8 +149,8 @@ class ContainerBase:  # {{{
     #: The mode used to parse HTML and CSS (polishing uses tweak_mode=False and the editor uses tweak_mode=True)
     tweak_mode = False
 
-    def __init__(self, log):
-        self.log = log
+    def __init__(self, log=default_log):
+        self.log = log or default_log
         self.parsed_cache = {}
         self.mime_map = {}
         self.encoding_map = {}
@@ -235,8 +233,8 @@ class Container(ContainerBase):  # {{{
     def book_type_for_display(self):
         return self.book_type.upper()
 
-    def __init__(self, rootpath, opfpath, log, clone_data=None):
-        ContainerBase.__init__(self, log)
+    def __init__(self, rootpath=None, opfpath=None, log=default_log, clone_data=None):
+        super().__init__(log=log)
         self.root = clone_data['root'] if clone_data is not None else os.path.abspath(rootpath)
 
         self.name_path_map = {}
@@ -247,8 +245,7 @@ class Container(ContainerBase):  # {{{
         self.href_to_name_cache = {}
 
         if clone_data is not None:
-            self.cloned = True
-            for x in ('name_path_map', 'opf_name', 'mime_map', 'pretty_print', 'encoding_map', 'tweak_mode'):
+            for x in ('cloned', 'name_path_map', 'opf_name', 'mime_map', 'pretty_print', 'encoding_map', 'tweak_mode'):
                 setattr(self, x, clone_data[x])
             self.opf_dir = os.path.dirname(self.name_path_map[self.opf_name])
             return
@@ -302,16 +299,24 @@ class Container(ContainerBase):  # {{{
             'pretty_print': set(self.pretty_print),
             'encoding_map': self.encoding_map.copy(),
             'tweak_mode': self.tweak_mode,
+            'cloned': self.cloned,
             'name_path_map': {
-                name:os.path.join(dest_dir, os.path.relpath(path, self.root))
-                for name, path in iteritems(self.name_path_map)}
+                name: os.path.join(dest_dir, os.path.relpath(path, self.root)) for name, path in self.name_path_map.items()
+            }
         }
 
     def clone_data(self, dest_dir):
         Container.commit(self, keep_parsed=False)
-        self.cloned = True
         clone_dir(self.root, dest_dir)
+        self.cloned = True
         return self.data_for_clone(dest_dir)
+
+    def __getstate__(self):
+        Container.commit(self, keep_parsed=True)
+        return self.data_for_clone()
+
+    def __setstate__(self, state):
+        self.__init__(log=default_log, clone_data=state)
 
     def add_name_to_manifest(self, name, process_manifest_item=None, suggested_id=''):
         ' Add an entry to the manifest for a file with the specified name. Returns the manifest id. '
@@ -500,7 +505,7 @@ class Container(ContainerBase):  # {{{
         # spec requires all text including filenames to be in NFC form.
         # The proper fix is to implement a VFS that maps between
         # canonical names and their file system representation, however,
-        # I dont have the time for that now. Note that the container
+        # I don't have the time for that now. Note that the container
         # ensures that all text files are normalized to NFC when
         # decoding them anyway, so there should be no mismatch between
         # names in the text and NFC canonical file names.
@@ -543,10 +548,16 @@ class Container(ContainerBase):  # {{{
         return name and name in self.name_path_map
 
     def has_name_and_is_not_empty(self, name):
-        if not self.has_name(name):
+        path = self.name_path_map.get(name)
+        if not path:
             return False
         try:
-            return os.path.getsize(self.name_path_map[name]) > 0
+            if (sz := os.path.getsize(path)) == 0:
+                # this can happen when the directory entry is not flushed (which happens during fast EPUB extraction), so
+                # open the file and check to be sure.
+                with open(path) as f:
+                    sz = f.seek(0, os.SEEK_END)
+            return sz > 0
         except OSError:
             return False
 
@@ -1065,7 +1076,7 @@ class Container(ContainerBase):  # {{{
         this will commit the file if it is dirtied and remove it from the parse
         cache. You must finish with this file before accessing the parsed
         version of it again, or bad things will happen. '''
-        return open(self.get_file_path_for_processing(name, mode not in {'r', 'rb'}), mode)
+        return open(make_long_path_useable(self.get_file_path_for_processing(name, mode not in {'r', 'rb'})), mode)
 
     def commit(self, outpath=None, keep_parsed=False):
         '''
@@ -1153,9 +1164,9 @@ class EpubContainer(Container):
             'rights.xml': False,
     }
 
-    def __init__(self, pathtoepub, log, clone_data=None, tdir=None):
+    def __init__(self, pathtoepub=None, log=default_log, clone_data=None, tdir=None):
         if clone_data is not None:
-            super().__init__(None, None, log, clone_data=clone_data)
+            super().__init__(log=log, clone_data=clone_data)
             for x in ('pathtoepub', 'obfuscated_fonts', 'is_dir'):
                 setattr(self, x, clone_data[x])
             return
@@ -1181,7 +1192,7 @@ class EpubContainer(Container):
                 try:
                     zf = ZipFile(stream)
                     zf.extractall(tdir)
-                except:
+                except Exception:
                     log.exception('EPUB appears to be invalid ZIP file, trying a'
                             ' more forgiving ZIP parser')
                     from calibre.utils.localunzip import extractall
@@ -1218,15 +1229,15 @@ class EpubContainer(Container):
             raise InvalidEpub('OPF file does not exist at location pointed to'
                     ' by META-INF/container.xml')
 
-        super().__init__(tdir, opf_path, log)
+        super().__init__(rootpath=tdir, opfpath=opf_path, log=log)
 
         self.obfuscated_fonts = {}
         if 'META-INF/encryption.xml' in self.name_path_map:
             self.process_encryption()
         self.parsed_cache['META-INF/container.xml'] = container
 
-    def clone_data(self, dest_dir):
-        ans = super().clone_data(dest_dir)
+    def data_for_clone(self, dest_dir=None):
+        ans = super().data_for_clone(dest_dir)
         ans['pathtoepub'] = self.pathtoepub
         ans['obfuscated_fonts'] = self.obfuscated_fonts.copy()
         ans['is_dir'] = self.is_dir
@@ -1437,7 +1448,7 @@ class KEPUBContainer(EpubContainer):
     book_type = 'kepub'
     MAX_HTML_FILE_SIZE = 512 * 1024
 
-    def __init__(self, pathtokepub, log, clone_data=None, tdir=None):
+    def __init__(self, pathtokepub=None, log=default_log, clone_data=None, tdir=None):
         super().__init__(pathtokepub, log=log, clone_data=clone_data, tdir=tdir)
         from calibre.ebooks.oeb.polish.kepubify import unkepubify_container
         Container.commit(self, keep_parsed=True)
@@ -1481,7 +1492,7 @@ def opf_to_azw3(opf, outpath, container):
 
         def _parse_css(self, data):
             # The default CSS parser used by oeb.base inserts the h namespace
-            # and resolves all @import rules. We dont want that.
+            # and resolves all @import rules. We don't want that.
             return container.parse_css(data)
 
     def specialize(oeb):
@@ -1532,9 +1543,9 @@ class AZW3Container(Container):
     SUPPORTS_TITLEPAGES = False
     SUPPORTS_FILENAMES = False
 
-    def __init__(self, pathtoazw3, log, clone_data=None, tdir=None):
+    def __init__(self, pathtoazw3=None, log=default_log, clone_data=None, tdir=None):
         if clone_data is not None:
-            super().__init__(None, None, log, clone_data=clone_data)
+            super().__init__(log=log, clone_data=clone_data)
             for x in ('pathtoazw3', 'obfuscated_fonts'):
                 setattr(self, x, clone_data[x])
             return
@@ -1577,11 +1588,11 @@ class AZW3Container(Container):
         except WorkerError as e:
             log(e.orig_tb)
             raise InvalidMobi('Failed to explode MOBI')
-        super().__init__(tdir, opf_path, log)
+        super().__init__(rootpath=tdir, opfpath=opf_path, log=log)
         self.obfuscated_fonts = {x.replace(os.sep, '/') for x in obfuscated_fonts}
 
-    def clone_data(self, dest_dir):
-        ans = super().clone_data(dest_dir)
+    def data_for_clone(self, dest_dir=None):
+        ans = super().data_for_clone(dest_dir)
         ans['pathtoazw3'] = self.pathtoazw3
         ans['obfuscated_fonts'] = self.obfuscated_fonts.copy()
         return ans
@@ -1607,8 +1618,6 @@ class AZW3Container(Container):
 
 
 def get_container(path, log=None, tdir=None, tweak_mode=False, ebook_cls=None) -> Container:
-    if log is None:
-        log = default_log
     try:
         isdir = os.path.isdir(path)
     except Exception:
@@ -1625,7 +1634,7 @@ def get_container(path, log=None, tdir=None, tweak_mode=False, ebook_cls=None) -
     if own_tdir:
         tdir = PersistentTemporaryDirectory(f'_{ebook_cls.book_type}_container')
     try:
-        ebook = ebook_cls(path, log, tdir=tdir)
+        ebook = ebook_cls(path, log=log, tdir=tdir)
         ebook.tweak_mode = tweak_mode
     except BaseException:
         if own_tdir:

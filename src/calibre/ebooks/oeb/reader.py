@@ -197,7 +197,7 @@ class OEBReader:
                     item.data
                 except KeyboardInterrupt:
                     raise
-                except:
+                except Exception:
                     self.logger.exception(f'Failed to parse content in {item.href}')
                     bad.append(item)
                     self.oeb.manifest.remove(item)
@@ -217,7 +217,7 @@ class OEBReader:
                 if (item.media_type in cdoc or item.media_type[-4:] in ('/xml', '+xml')):
                     try:
                         data = item.data
-                    except:
+                    except Exception:
                         self.oeb.log.exception('Failed to read from manifest '
                                 f'entry with id: {item.id}, ignoring')
                         invalid.add(item)
@@ -236,7 +236,7 @@ class OEBReader:
                         try:
                             href = item.abshref(urlnormalize(href))
                             scheme = urlparse(href).scheme
-                        except:
+                        except Exception:
                             self.oeb.log.exception(
                                 f'Skipping invalid href: {href!r}')
                             continue
@@ -245,7 +245,7 @@ class OEBReader:
                 elif item.media_type in OEB_STYLES:
                     try:
                         urls = list(css_parser.getUrls(data))
-                    except:
+                    except Exception:
                         urls = []
                     for url in urls:
                         href, _ = urldefrag(url)
@@ -434,7 +434,7 @@ class OEBReader:
 
             try:
                 po = int(child.get('playOrder', self.oeb.toc.next_play_order()))
-            except:
+            except Exception:
                 po = self.oeb.toc.next_play_order()
 
             authorElement = xpath(child,
@@ -549,7 +549,7 @@ class OEBReader:
             title = COLLAPSE_RE.sub(' ', title.strip())
             if title:
                 titles.append(title)
-            headers.append('(unlabled)')
+            headers.append('(unlabeled)')
             for tag in ('h1', 'h2', 'h3', 'h4', 'h5', 'strong'):
                 expr = '/h:html/h:body//h:%s[position()=1]/text()'
                 header = ''.join(xpath(html, expr % tag))

@@ -188,7 +188,7 @@ class Main(MainWindow, MainWindowMixin, DeviceMixin, EmailMixin,  # {{{
             try:
                 st = self.init_istore(store)
                 self.add_istore(st)
-            except:
+            except Exception:
                 # Ignore errors in loading user supplied plugins
                 import traceback
                 traceback.print_exc()
@@ -364,7 +364,7 @@ class Main(MainWindow, MainWindowMixin, DeviceMixin, EmailMixin,  # {{{
         if not gprefs.get('quick_start_guide_added', False):
             try:
                 add_quick_start_guide(self.library_view)
-            except:
+            except Exception:
                 import traceback
                 traceback.print_exc()
         for view in ('library', 'memory', 'card_a', 'card_b'):
@@ -399,7 +399,7 @@ class Main(MainWindow, MainWindowMixin, DeviceMixin, EmailMixin,  # {{{
         for ac in self.iactions.values():
             try:
                 ac.gui_layout_complete()
-            except:
+            except Exception:
                 import traceback
                 traceback.print_exc()
                 if ac.installation_type is PluginInstallationType.BUILTIN:
@@ -429,7 +429,7 @@ class Main(MainWindow, MainWindowMixin, DeviceMixin, EmailMixin,  # {{{
         for ac in self.iactions.values():
             try:
                 ac.initialization_complete()
-            except:
+            except Exception:
                 import traceback
                 traceback.print_exc()
                 if ac.installation_type is PluginInstallationType.BUILTIN:
@@ -889,6 +889,15 @@ class Main(MainWindow, MainWindowMixin, DeviceMixin, EmailMixin,  # {{{
             self.activateWindow()
         elif msg.startswith('shutdown:'):
             self.quit(confirm_quit=False)
+        elif msg.startswith('save-annotations:'):
+            from calibre.gui2.viewer.integration import save_annotations_in_gui
+            try:
+                if not save_annotations_in_gui(self.library_broker, msg[len('save-annotations:'):]):
+                    print('Failed to update annotations for book from viewer, book or library not found.', file=sys.stderr)
+            except Exception:
+                import traceback
+                error_dialog(self, _('Failed to update annotations'), _(
+                    'Failed to update annotations in the database for the book being currently viewed.'), det_msg=traceback.format_exc(), show=True)
         elif msg.startswith('bookedited:'):
             parts = msg.split(':')[1:]
             try:
@@ -955,7 +964,7 @@ class Main(MainWindow, MainWindowMixin, DeviceMixin, EmailMixin,  # {{{
                 olddb = self.library_view.model().db
                 if copy_structure:
                     default_prefs = dict(olddb.prefs)
-            except:
+            except Exception:
                 olddb = None
             if copy_structure and olddb is not None and default_prefs is not None:
                 default_prefs['field_metadata'] = olddb.new_api.field_metadata.all_metadata()
@@ -1155,13 +1164,13 @@ class Main(MainWindow, MainWindowMixin, DeviceMixin, EmailMixin,  # {{{
                     d.show()
                     self._modeless_dialogs.append(d)
                 return
-        except:
+        except Exception:
             pass
         if job.killed:
             return
         try:
             prints(job.details, file=sys.stderr)
-        except:
+        except Exception:
             pass
         if not minz:
             self.job_error_dialog.show_error(dialog_title,
@@ -1204,7 +1213,7 @@ class Main(MainWindow, MainWindowMixin, DeviceMixin, EmailMixin,  # {{{
         self.restart_after_quit = restart
         try:
             self.shutdown()
-        except:
+        except Exception:
             import traceback
             traceback.print_exc()
         self.debug_on_restart = debug_on_restart
@@ -1261,7 +1270,7 @@ class Main(MainWindow, MainWindowMixin, DeviceMixin, EmailMixin,  # {{{
         try:
             db = self.library_view.model().db
             cf = db.clean
-        except:
+        except Exception:
             pass
         else:
             cf()
@@ -1289,7 +1298,7 @@ class Main(MainWindow, MainWindowMixin, DeviceMixin, EmailMixin,  # {{{
         def eh(t, v, tb):
             try:
                 traceback.print_exception(t, v, tb, file=sys.stderr)
-            except:
+            except Exception:
                 pass
         sys.excepthook = eh
 
@@ -1338,7 +1347,7 @@ class Main(MainWindow, MainWindowMixin, DeviceMixin, EmailMixin,  # {{{
             self.restart_after_quit = True
             try:
                 self.shutdown(write_settings=False)
-            except:
+            except Exception:
                 pass
             QApplication.instance().quit()
 
@@ -1359,7 +1368,7 @@ class Main(MainWindow, MainWindowMixin, DeviceMixin, EmailMixin,  # {{{
             if self.confirm_quit():
                 try:
                     self.shutdown(write_settings=False)
-                except:
+                except Exception:
                     import traceback
                     traceback.print_exc()
                 e.accept()
