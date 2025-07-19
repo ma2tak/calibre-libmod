@@ -580,7 +580,7 @@ class Build(Command):
             if iswindows or env is self.windows_cross_env:
                 pre_ld_flags = []
                 if ext.uses_icu:
-                    # windows has its own ICU libs that dont work
+                    # windows has its own ICU libs that don't work
                     pre_ld_flags = elib
                 cmd += pre_ld_flags + env.ldflags + ext.ldflags + elib + xlib + \
                     ['/EXPORT:' + init_symbol_name(ext.name)] + all_objects + ['/OUT:'+dest]
@@ -615,7 +615,7 @@ class Build(Command):
         '''
         try:
             subprocess.check_call(*args, **kwargs)
-        except:
+        except Exception:
             cmdline = ' '.join([f'"{arg}"' if ' ' in arg else arg for arg in args[0]])
             print(f'Error while executing: {cmdline}\n')
             raise
@@ -623,7 +623,7 @@ class Build(Command):
     def build_headless(self):
         from setup.parallel_build import cpu_count
         if iswindows or ishaiku:
-            return  # Dont have headless operation on these platforms
+            return  # Don't have headless operation on these platforms
         from setup.build_environment import CMAKE, sw
         self.info('\n####### Building headless QPA plugin', '#'*7)
         a = absolutize

@@ -55,7 +55,7 @@ def parse_indx_header(data):
     ans['ordt_map'] = ''
 
     if ordt1 > 0 and data[ordt1:ordt1+4] == b'ORDT':
-        # I dont know what this is, but using it seems to be unnecessary, so
+        # I don't know what this is, but using it seems to be unnecessary, so
         # just leave it as the raw bytestring
         ans['ordt1_raw'] = data[ordt1+4:ordt1+4+ans['oentries']]
     if ordt2 > 0 and data[ordt2:ordt2+4] == b'ORDT':
@@ -100,7 +100,7 @@ class CNCX:  # {{{
                     try:
                         self.records[pos+record_offset] = raw[
                             pos+consumed:pos+consumed+length].decode(codec)
-                    except:
+                    except Exception:
                         byts = raw[pos:]
                         r = format_bytes(byts)
                         print(f'CNCX entry at offset {pos + record_offset} has unknown format {r}')

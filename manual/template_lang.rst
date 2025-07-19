@@ -192,6 +192,7 @@ The following functions are usable in Single Function Mode because their first p
 * :ffsum:`encode_for_url`
 * :ffsum:`floor`
 * :ffsum:`format_date`
+* :ffsum:`format_duration`
 * :ffsum:`format_number`
 * :ffsum:`fractional_part`
 * :ffsum:`human_readable`
@@ -293,7 +294,7 @@ Notes:
 * In a logical context, any non-empty value is ``True``
 * In a logical context, the empty value is ``False``
 * Strings and numbers can be used interchangeably. For example, ``10`` and ``'10'`` are the same thing.
-* Comments are lines starting with a '#' character. Comments beginning later in a line are not supported.
+* Comments are lines starting with a '#' character, possibly preceded by blanks or tabs.
 
 **Operator precedence**
 
@@ -411,9 +412,9 @@ Relational operators return ``'1'`` if the comparison is true, otherwise the emp
 There are two forms of relational operators: string comparisons and numeric comparisons.
 
 String comparisons do case-insensitive string comparison using lexical order. The supported string comparison operators are ``==``, ``!=``, ``<``, ``<=``, ``>``, ``>=``, ``in``, ``inlist``, and ``inlist_field``.
-For the ``in`` operator, the result of the left hand expression is interpreted as a regular expression pattern. The ``in`` operator is True if the value of left-hand regular expression matches the value of the right hand expression.
+For the ``in``, ``inlist``, and ``inlist_field`` operators, the result of the left hand expression is interpreted as a regular expression pattern. They are true if the value of left-hand regular expression matches the value of the right hand expression. The regular expressions are case-insensitive.
 
-The ``inlist`` operator is true if the left hand regular expression matches any one of the items in the right hand list where the items in the list are separated by commas. The ``inlist_field`` operator is true if the left hand regular expression matches any of the items in the field (column) named by the right hand expression, using the separator defined for the field. NB: the ``inlist_field`` operator requires the right hand expression to evaluate to a field name, while the ``inlist`` operator requires the right hand expression to evaluate to a string containing a comma-separated list. Because of this difference, ``inlist_field`` is substantially faster than ``inlist`` because no string conversions or list constructions are done. The regular expressions are case-insensitive.
+The ``inlist`` operator is true if the left hand regular expression matches any one of the items in the right hand list where the items in the list are separated by commas. The ``inlist_field`` operator is true if the left hand regular expression matches any of the items in the field (column) named by the right hand expression, using the separator defined for the field. NB: the ``inlist_field`` operator requires the right hand expression to evaluate to a field name, while the ``inlist`` operator requires the right hand expression to evaluate to a string containing a comma-separated list. Because of this difference, ``inlist_field`` is substantially faster than ``inlist`` because no string conversions or list constructions are done.
 
 The numeric comparison operators are ``==#``, ``!=#``, ``<#``, ``<=#``, ``>#``, ``>=#``. The left and right expressions must evaluate to numeric values with two exceptions: both the string value "None" (undefined field) and the empty string evaluate to the value zero.
 
@@ -452,7 +453,7 @@ More complex programs in template expressions - Template Program Mode
 Example: assume you want a template to show the series for a book if it has one, otherwise show
 the value of a custom field #genre. You cannot do this in the :ref:`Single Function Mode <single_mode>` because you cannot make reference to another metadata field within a template expression. In `TPM` you can, as the following expression demonstrates::
 
-    {series_index:0>7.1f:'ifempty($, -5)'}
+    {series:'ifempty($, $#genre)'}
 
 The example shows several things:
 
@@ -460,14 +461,14 @@ The example shows several things:
 
   If the template contains a prefix and suffix, the expression ends with ``'|`` where the ``|`` is the delimiter for the prefix. Example::
 
-    {series_index:0>7.1f:'ifempty($, -5)'|prefix | suffix}
+    {series:'ifempty($, $#genre)'|prefix | suffix}
 
 * Functions must be given all their arguments. For example, the standard built-in functions must be given the initial parameter ``value``.
-* The variable ``$`` is usable as the ``value`` argument and stands for the value of the field named in the template, ``series_index`` in this case.
+* The variable ``$`` is usable as the ``value`` argument and stands for the value of the field named in the template, ``series`` in this case.
 * white space is ignored and can be used anywhere within the expression.
 * constant strings are enclosed in matching quotes, either ``'`` or ``"``.
 
-In `TPM`, using ``{`` and ``}`` characters in string literals can lead to errors or unexpected results because they confuse the template processor. It tries to treat them as template expression boundaries, not characters. In some but not all cases you can replace a ``{`` with ``[[`` and a ``}`` with `]]`. Generally, if your program contains ``{`` and ``}`` characters then you should use `General Program Mode`.
+In `TPM`, using ``{`` and ``}`` characters in string literals can lead to errors or unexpected results because they confuse the template processor. It tries to treat them as template expression boundaries, not characters. In some but not all cases you can replace a ``{`` with ``[[`` and a ``}`` with `]]`. Advice: if your program contains ``{`` and ``}`` characters then you should use `General Program Mode`.
 
 .. _python_mode:
 

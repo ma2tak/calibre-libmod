@@ -262,14 +262,14 @@ class InterfaceAction(QObject):
                 except NameConflict as e:
                     try:
                         prints(str(e))
-                    except:
+                    except Exception:
                         pass
                     shortcut_action.setShortcuts([QKeySequence(key,
                         QKeySequence.SequenceFormat.PortableText) for key in keys])
                 else:
                     self.shortcut_action_for_context_menu = shortcut_action
                     if ismacos:
-                        # In Qt 5 keyboard shortcuts dont work unless the
+                        # In Qt 5 keyboard shortcuts don't work unless the
                         # action is explicitly added to the main window
                         self.gui.addAction(shortcut_action)
 
@@ -338,7 +338,7 @@ class InterfaceAction(QObject):
                 shortcut_name, default_keys=keys,
                 action=ac, description=description, group=self.action_spec[0],
                 persist_shortcut=persist_shortcut)
-            # In Qt 5 keyboard shortcuts dont work unless the
+            # In Qt 5 keyboard shortcuts don't work unless the
             # action is explicitly added to the main window and on OSX and
             # Unity since the menu might be exported, the shortcuts won't work
             self.gui.addAction(ac)

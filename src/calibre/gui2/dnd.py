@@ -14,7 +14,7 @@ from threading import Thread
 from qt.core import QDialog, QDialogButtonBox, QImageReader, QLabel, QMimeData, QPixmap, QProgressBar, Qt, QTimer, QUrl, QVBoxLayout
 
 from calibre import as_unicode, browser, prints
-from calibre.constants import DEBUG, ismacos, iswindows
+from calibre.constants import DEBUG, iswindows
 from calibre.gui2 import error_dialog
 from calibre.ptempfile import PersistentTemporaryFile
 from calibre.utils.filenames import make_long_path_useable
@@ -141,7 +141,7 @@ def data_as_string(f, md):
     if '/x-moz' in f:
         try:
             raw = raw.decode('utf-16')
-        except:
+        except Exception:
             pass
     return raw
 
@@ -351,7 +351,7 @@ def get_firefox_rurl(md, exts):
             url, fname = _get_firefox_pair(md, exts,
                     'application/x-moz-file-promise-url',
                     'application/x-moz-file-promise-dest-filename')
-        except:
+        except Exception:
             if DEBUG:
                 import traceback
                 traceback.print_exc()
@@ -360,7 +360,7 @@ def get_firefox_rurl(md, exts):
         try:
             url, fname = _get_firefox_pair(md, exts,
                     'text/x-moz-url-data', 'text/x-moz-url-desc')
-        except:
+        except Exception:
             if DEBUG:
                 import traceback
                 traceback.print_exc()
@@ -375,7 +375,7 @@ def get_firefox_rurl(md, exts):
                 ext = posixpath.splitext(fname)[1][1:].lower()
                 if ext not in exts:
                     fname = url = None
-        except:
+        except Exception:
             if DEBUG:
                 import traceback
                 traceback.print_exc()
@@ -390,9 +390,4 @@ def has_firefox_ext(md, exts):
 
 def set_urls_from_local_file_paths(md: QMimeData, *paths: str) -> QMimeData:
     md.setUrls(list(map(QUrl.fromLocalFile, paths)))
-    if ismacos:
-        # see https://bugreports.qt.io/browse/QTBUG-134073
-        raw = bytes(md.data('text/uri-list'))
-        raw = raw.replace(b'[', b'%5B').replace(b']', b'%5D')
-        md.setData('text/uri-list', raw)
     return md

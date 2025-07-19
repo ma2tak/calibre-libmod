@@ -89,6 +89,16 @@ def load_plugin(path_to_zip_file):  # {{{
 
 # Enable/disable plugins {{{
 
+def disable_plugin_by_name(name: str) -> None:
+    dp = config['disabled_plugins']
+    dp.add(name)
+    config['disabled_plugins'] = dp
+    ep = config['enabled_plugins']
+    if name in ep:
+        ep.remove(name)
+        config['enabled_plugins'] = ep
+
+
 def disable_plugin(plugin_or_name):
     x = getattr(plugin_or_name, 'name', plugin_or_name)
     plugin = find_plugin(x)
@@ -96,13 +106,7 @@ def disable_plugin(plugin_or_name):
         raise ValueError(f'No plugin named: {x} found')
     if not plugin.can_be_disabled:
         raise ValueError(f'Plugin {x} cannot be disabled')
-    dp = config['disabled_plugins']
-    dp.add(x)
-    config['disabled_plugins'] = dp
-    ep = config['enabled_plugins']
-    if x in ep:
-        ep.remove(x)
-    config['enabled_plugins'] = ep
+    disable_plugin_by_name(x)
 
 
 def enable_plugin(plugin_or_name):
@@ -208,7 +212,7 @@ def _run_filetype_plugins(path_to_file, ft=None, occasion='preprocess'):
                 pass
             try:
                 nfp = plugin.run(nfp) or nfp
-            except:
+            except Exception:
                 print(f'Running file type plugin {plugin.name} failed with traceback:', file=oe)
                 traceback.print_exc(file=oe)
         sys.stdout, sys.stderr = oo, oe
@@ -491,7 +495,7 @@ def get_file_type_metadata(stream, ftype):
                             stream.seek(0)
                         mi = plugin.get_metadata(stream, ftype.lower().strip())
                         break
-                    except:
+                    except Exception:
                         traceback.print_exc()
                         continue
     return mi
@@ -510,7 +514,7 @@ def set_file_type_metadata(stream, mi, ftype, report_error=None):
                         plugin.site_customization = customization.get(plugin.name, '')
                         plugin.set_metadata(stream, mi, ftype.lower().strip())
                         break
-                    except:
+                    except Exception:
                         if report_error is None:
                             from calibre import prints
                             prints('Failed to set metadata for the', ftype.upper(), 'format of:', getattr(mi, 'title', ''), file=sys.stderr)
@@ -565,7 +569,7 @@ def remove_plugin(plugin_or_name):
             zfp = plugins[name]
             if os.path.exists(zfp):
                 os.remove(zfp)
-        except:
+        except Exception:
             pass
         plugins.pop(name)
     config['plugins'] = plugins
@@ -711,7 +715,7 @@ def patch_metadata_plugins(possibly_updated_plugins):
             if pup is not None:
                 if pup.version > plugin.version and pup.minimum_calibre_version <= numeric_version:
                     patches[i] = pup(None)
-                    # Metadata source plugins dont use initialize() but that
+                    # Metadata source plugins don't use initialize() but that
                     # might change in the future, so be safe.
                     patches[i].initialize()
     for i, pup in iteritems(patches):
@@ -784,10 +788,13 @@ def initialize_plugins(perf=False):
     external_plugins = config['plugins'].copy()
 
     if 'KoboTouchExtended' in external_plugins and is_disabled('KoboTouch') and not is_disabled('KoboTouchExtended'):
-        # We remove KoboTouchExtended and re-enable KoboTouch so that the Kobo
+        # We disable KoboTouchExtended and re-enable KoboTouch so that the Kobo
         # device keeps working even though KoboTouchExtended is blacklisted.
-        disable_plugin('KoboTouchExtended')
-        enable_plugin('KoboTouch')
+        try:
+            disable_plugin_by_name('KoboTouchExtended')
+            enable_plugin('KoboTouch')
+        except Exception:
+            traceback.print_exc()
     for name in BLACKLISTED_PLUGINS:
         external_plugins.pop(name, None)
         system_plugins.pop(name, None)
@@ -822,7 +829,7 @@ def initialize_plugins(perf=False):
             if perf:
                 times[plugin.name] = time.time() - st
             _initialized_plugins.append(plugin)
-        except:
+        except Exception:
             print('Failed to initialize plugin:', repr(zfp), file=sys.stderr)
             if DEBUG:
                 traceback.print_exc()

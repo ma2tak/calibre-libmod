@@ -103,7 +103,7 @@ class Serializer:
         for i, item in enumerate(items):
             try:
                 prev_item = items[i-1]
-            except:
+            except Exception:
                 prev_item = None
             if in_art and item.is_article_start is True:
                 prev_item.is_article_end = True
@@ -240,7 +240,7 @@ class Serializer:
                 if tocref.klass == 'periodical':
                     # This is a section node.
                     # For periodical tocs, the section urls are like r'feed_\d+/index.html'
-                    # We dont want to point to the start of the first article
+                    # We don't want to point to the start of the first article
                     # so we change the href.
                     itemhref = re.sub(r'article_\d+/', '', itemhref)
                 self.href_offsets[itemhref].append(buf.tell())

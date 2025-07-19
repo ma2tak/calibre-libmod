@@ -43,7 +43,7 @@ def fc_list():
         return default_font_dirs()
     try:
         lib = ctypes.CDLL(lib)
-    except:
+    except Exception:
         return default_font_dirs()
 
     prototype = ctypes.CFUNCTYPE(ctypes.c_void_p, ctypes.c_void_p)
@@ -278,7 +278,7 @@ class FontScanner(Thread):
             try:
                 raw = self.get_font_data(font)
                 return supports_text(raw, text)
-            except:
+            except Exception:
                 pass
             return False
 
@@ -315,8 +315,8 @@ class FontScanner(Thread):
         self.reload_cache()
 
         if isworker:
-            # Dont scan font files in worker processes, use whatever is
-            # cached. Font files typically dont change frequently enough to
+            # Don't scan font files in worker processes, use whatever is
+            # cached. Font files typically don't change frequently enough to
             # justify a rescan in a worker process.
             self.build_families()
             return

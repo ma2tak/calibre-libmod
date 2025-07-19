@@ -76,10 +76,13 @@ class DummyCSSPreProcessor:
         return data
 
 
+GENERIC_GUI_NAME = 'Kobo eReader'
+
+
 class KOBO(USBMS):
 
     name = 'Kobo Reader Device Interface'
-    gui_name = 'Kobo Reader'
+    gui_name = GENERIC_GUI_NAME
     description = _('Communicate with the original Kobo Reader and the Kobo WiFi.')
     author = 'Timothy Legge and David Forrester'
     version = (2, 6, 0)
@@ -329,7 +332,7 @@ class KOBO(USBMS):
                                 title = 'FILE MISSING: ' + title
                                 book = self.book_class(prefix, lpath, title, authors, mime, date, ContentType, ImageID, size=1048576)
 
-                        except:
+                        except Exception:
                             debug_print('prefix: ', prefix, 'lpath: ', lpath, 'title: ', title, 'authors: ', authors,
                                         'mime: ', mime, 'date: ', date, 'ContentType: ', ContentType, 'ImageID: ', ImageID)
                             raise
@@ -339,7 +342,7 @@ class KOBO(USBMS):
 
                     if bl.add_book(book, replace_metadata=False):
                         changed = True
-            except:  # Probably a path encoding error
+            except Exception:  # Probably a path encoding error
                 import traceback
                 traceback.print_exc()
             return changed
@@ -759,7 +762,7 @@ class KOBO(USBMS):
                     pass
                 else:
                     with open(outpath, 'rb') as src:
-                        shutil.copyfile(src, outfile)
+                        shutil.copyfileobj(src, outfile)
                     return
 
         return USBMS.get_file(self, path, outfile, end_session=end_session)
@@ -806,7 +809,7 @@ class KOBO(USBMS):
 
         try:
             cursor.execute(query)
-        except:
+        except Exception:
             debug_print('    Database Exception:  Unable to reset ReadStatus list')
             raise
         finally:
@@ -836,7 +839,7 @@ class KOBO(USBMS):
             try:
                 debug_print(f'Kobo::set_readstatus - Making change - ContentID={ContentID}, ReadStatus={ReadStatus}, DateLastRead={datelastread}')
                 cursor.execute("update content set ReadStatus=?,FirstTimeReading='false',DateLastRead=? where BookID is Null and ContentID = ?", t)
-            except:
+            except Exception:
                 debug_print('    Database Exception: Unable to update ReadStatus')
                 raise
 
@@ -1035,7 +1038,7 @@ class KOBO(USBMS):
         debug_print('KOBO: uploading cover')
         try:
             self._upload_cover(path, filename, metadata, filepath, uploadgrayscale)
-        except:
+        except Exception:
             debug_print('FAILED to upload cover', filepath)
 
     def _upload_cover(self, path, filename, metadata, filepath, uploadgrayscale):
@@ -1245,13 +1248,13 @@ class KOBO(USBMS):
         if bookmark.last_read is not None:
             try:
                 last_read = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(calendar.timegm(time.strptime(bookmark.last_read, '%Y-%m-%dT%H:%M:%S'))))
-            except:
+            except Exception:
                 try:
                     last_read = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(calendar.timegm(time.strptime(bookmark.last_read, '%Y-%m-%dT%H:%M:%S.%f'))))
-                except:
+                except Exception:
                     try:
                         last_read = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(calendar.timegm(time.strptime(bookmark.last_read, '%Y-%m-%dT%H:%M:%SZ'))))
-                    except:
+                    except Exception:
                         last_read = time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime())
         else:
             # self.datetime = time.gmtime()
@@ -1380,7 +1383,7 @@ class KOBO(USBMS):
 
 class KOBOTOUCH(KOBO):
     name        = 'KoboTouch'
-    gui_name    = 'Kobo eReader'
+    gui_name    = GENERIC_GUI_NAME
     author      = 'David Forrester'
     description = _(
         'Communicate with the Kobo Touch, Glo, Mini, Aura HD,'
@@ -1393,7 +1396,7 @@ class KOBOTOUCH(KOBO):
         ' Based on the existing Kobo driver by %s.') % KOBO.author
     # icon        = 'devices/kobotouch.jpg'
 
-    supported_dbversion             = 191
+    supported_dbversion             = 196
     min_supported_dbversion         = 53
     min_dbversion_series            = 65
     min_dbversion_externalid        = 65
@@ -1408,7 +1411,7 @@ class KOBOTOUCH(KOBO):
     # Starting with firmware version 3.19.x, the last number appears to be is a
     # build number. A number will be recorded here but it can be safely ignored
     # when testing the firmware version.
-    max_supported_fwversion         = (5, 6, 209315)
+    max_supported_fwversion         = (5, 9, 220067)
     # The following document firmware versions where new function or devices were added.
     # Not all are used, but this feels a good place to record it.
     min_fwversion_shelves           = (2, 0, 0)
@@ -1612,6 +1615,9 @@ class KOBOTOUCH(KOBO):
         self.device_database_path = os.path.join(self._main_prefix, KOBO_ROOT_DIR_NAME, 'KoboReader.sqlite')
         self.db_manager = Database(self.device_database_path)
         self.dbversion = self.db_manager.dbversion
+
+    def on_device_close(self):
+        self.__class__.gui_name = GENERIC_GUI_NAME
 
     def database_transaction(self, use_row_factory=False):
         self.db_manager.use_row_factory = use_row_factory
@@ -1840,10 +1846,10 @@ class KOBOTOUCH(KOBO):
                 if DateCreated is not None:
                     try:
                         kobo_metadata.pubdate     = parse_date(DateCreated, assume_utc=True)
-                    except:
+                    except Exception:
                         try:
                             kobo_metadata.pubdate = datetime.strptime(DateCreated, '%Y-%m-%dT%H:%M:%S.%fZ')
-                        except:
+                        except Exception:
                             debug_print(f"KoboTouch:update_booklist - Cannot convert date - DateCreated='{DateCreated}'")
 
                 idx = bl_cache.get(lpath, None)
@@ -1960,7 +1966,7 @@ class KOBOTOUCH(KOBO):
                     if show_debug:
                         debug_print('        book.device_collections', book.device_collections)
                         debug_print('        book.title', book.title)
-            except:  # Probably a path encoding error
+            except Exception:  # Probably a path encoding error
                 import traceback
                 traceback.print_exc()
             return changed
@@ -2299,7 +2305,7 @@ class KOBOTOUCH(KOBO):
                     continue
                 debug_print('KoboTouch:upload_books: Processing book: {} by {}'.format(mi.title, ' and '.join(mi.authors)))
                 debug_print(f'KoboTouch:upload_books: file={file}, name={n}')
-                self.report_progress(i / float(len(modifiable)), 'Processing book: {} by {}'.format(mi.title, ' and '.join(mi.authors)))
+                self.report_progress(i / float(len(modifiable)), _('Processing book: {0} by {1}').format(mi.title, ' and '.join(mi.authors)))
                 if mi.uuid in kepubifiable:
                     self._kepubify(file, n, mi)
                 else:
@@ -2341,23 +2347,29 @@ class KOBOTOUCH(KOBO):
         return result
 
     def _kepubify(self, path, name, mi) -> None:
+        from calibre.ebooks.conversion.config import load_defaults
         from calibre.ebooks.oeb.polish.kepubify import kepubify_path, make_options
+        prefs = load_defaults('kepub_output')
+        prefer_justification = prefs.get('kepub_prefer_justification', False)
         debug_print(f'Starting conversion of {mi.title} ({name}) to kepub')
         opts = make_options(
             extra_css=self.extra_css or '',
             affect_hyphenation=bool(self.get_pref('affect_hyphenation')),
             disable_hyphenation=bool(self.get_pref('disable_hyphenation')),
-            hyphenation_min_chars=bool(self.get_pref('hyphenation_min_chars')),
-            hyphenation_min_chars_before=bool(self.get_pref('hyphenation_min_chars_before')),
-            hyphenation_min_chars_after=bool(self.get_pref('hyphenation_min_chars_after')),
-            hyphenation_limit_lines=bool(self.get_pref('hyphenation_limit_lines')),
+            hyphenation_min_chars=self.get_pref('hyphenation_min_chars'),
+            hyphenation_min_chars_before=self.get_pref('hyphenation_min_chars_before'),
+            hyphenation_min_chars_after=self.get_pref('hyphenation_min_chars_after'),
+            hyphenation_limit_lines=self.get_pref('hyphenation_limit_lines'),
             remove_at_page_rules=self.extra_css_options.get('has_atpage', False),
             remove_widows_and_orphans=self.extra_css_options.get('has_widows_orphans', False),
+            prefer_justification=prefer_justification,
         )
         try:
             kepubify_path(path, outpath=path, opts=opts, allow_overwrite=True)
         except DRMError:
             debug_print(f'Not converting {mi.title} ({name}) to KEPUB as it is DRMed')
+        except Exception as e:
+            raise ValueError(_('Could not kepubify the book {title} ({name}) failed with error: {e}').format(title=mi.title, name=name, e=e)) from e
         else:
             debug_print(f'Conversion of {mi.title} ({name}) to KEPUB succeeded')
             self.files_to_rename_to_kepub.add(mi.uuid)
@@ -3326,7 +3338,7 @@ class KOBOTOUCH(KOBO):
             if book.kobo_series_number is not None:
                 try:
                     kobo_series_number = float(book.kobo_series_number)
-                except:
+                except Exception:
                     kobo_series_number = None
             if kobo_series_number == book.series_index:
                 if show_debug:
@@ -3347,7 +3359,7 @@ class KOBOTOUCH(KOBO):
                 debug_print('KoboTouch:set_series - about to set - parameters:', update_values)
             cursor.execute(update_query, update_values)
             self.series_set += 1
-        except:
+        except Exception:
             debug_print('    Database Exception:  Unable to set series info')
             raise
         finally:
@@ -3417,8 +3429,13 @@ class KOBOTOUCH(KOBO):
         if newmi.series is not None:
             new_series = newmi.series
             try:
-                new_series_number = f'{newmi.series_index:g}'
-            except:
+                if self.use_series_index_template:
+                    from calibre.ebooks.metadata.book.formatter import SafeFormat
+                    new_series_number = SafeFormat().safe_format(
+                        self.series_index_template, newmi, 'Kobo series number template', newmi)
+                else:
+                    new_series_number = f'{newmi.series_index:g}'
+            except Exception:
                 new_series_number = None
         else:
             new_series = None
@@ -3573,7 +3590,7 @@ class KOBOTOUCH(KOBO):
                     debug_print('KoboTouch:set_core_metadata - about to set - update_query:', update_query)
                 cursor.execute(update_query, update_values)
                 self.core_metadata_set += 1
-            except:
+            except Exception:
                 debug_print('    Database Exception:  Unable to set the core metadata')
                 debug_print(f'    Query was: {update_query}')
                 debug_print(f'    Values were: {update_values}')
@@ -3606,7 +3623,7 @@ class KOBOTOUCH(KOBO):
             cls.opts = cls.settings()
         try:
             return getattr(cls.opts, key)
-        except:
+        except Exception:
             debug_print('KoboTouch::get_prefs - probably an extra_customization:', key)
         return None
 
@@ -3628,6 +3645,8 @@ class KOBOTOUCH(KOBO):
         c.add_opt('collections_columns', default='')
         c.add_opt('use_collections_template', default=False)
         c.add_opt('collections_template', default='')
+        c.add_opt('use_series_index_template', default=False)
+        c.add_opt('series_index_template', default='')
         c.add_opt('create_collections', default=False)
         c.add_opt('delete_empty_collections', default=False)
         c.add_opt('ignore_collections_names', default='')
@@ -3698,8 +3717,8 @@ class KOBOTOUCH(KOBO):
             m('Aura One', cls.AURA_ONE_PRODUCT_ID),
             m('Clara HD', cls.CLARA_HD_PRODUCT_ID),
             m('Clara 2E', cls.CLARA_2E_PRODUCT_ID),
-            m('Clara Black and White', cls.CLARA_BW_PRODUCT_ID),
-            m('Clara Color', cls.CLARA_COLOR_PRODUCT_ID),
+            m('Clara BW', cls.CLARA_BW_PRODUCT_ID),
+            m('Clara Colour', cls.CLARA_COLOR_PRODUCT_ID),
             m('Elipsa', cls.ELIPSA_PRODUCT_ID),
             m('Elipsa 2E', cls.ELIPSA_2E_PRODUCT_ID),
             m('Forma', cls.FORMA_PRODUCT_ID),
@@ -3707,6 +3726,7 @@ class KOBOTOUCH(KOBO):
             m('Glo HD', cls.GLO_HD_PRODUCT_ID),
             m('Libra H2O', cls.LIBRA_H2O_PRODUCT_ID),
             m('Libra 2', cls.LIBRA2_PRODUCT_ID),
+            m('Libra Colour', cls.LIBRA_COLOR_PRODUCT_ID),
             m('Mini', cls.MINI_PRODUCT_ID),
             m('Nia', cls.NIA_PRODUCT_ID),
             m('Sage', cls.SAGE_PRODUCT_ID),
@@ -3972,6 +3992,14 @@ class KOBOTOUCH(KOBO):
     @property
     def collections_template(self):
         return self.get_pref('collections_template') if self.use_collections_template else ''
+
+    @property
+    def use_series_index_template(self):
+        return self.get_pref('use_series_index_template')
+
+    @property
+    def series_index_template(self):
+        return self.get_pref('series_index_template') if self.use_series_index_template else ''
 
     def get_collections_attributes(self):
         collections_str = self.collections_columns
@@ -4314,7 +4342,7 @@ class KOBOTOUCH(KOBO):
             self.debugging_title = self.get_debugging_title()
         try:
             is_debugging = (len(self.debugging_title) > 0 and title.lower().find(self.debugging_title.lower()) >= 0) or len(title) == 0
-        except:
+        except Exception:
             debug_print(f"KoboTouch::is_debugging_title - Exception checking debugging title for title '{title}'.")
             is_debugging = False
 

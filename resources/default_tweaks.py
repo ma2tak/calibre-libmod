@@ -91,20 +91,24 @@ author_surname_prefixes = ('da', 'de', 'di', 'la', 'le', 'van', 'von')
 # Default: r'(?i),?\s+(and|with)\s+'
 authors_split_regex = r'(?i),?\s+(and|with)\s+'
 
-#: Use author sort in Tag browser
-# Set which author field to display in the Tag browser (the list of authors,
-# series, publishers etc on the left hand side). The choices are author and
-# author_sort. This tweak affects only what is displayed under the authors
-# category in the Tag browser and Content server. Please note that if you set this
-# to author_sort, it is very possible to see duplicate names in the list because
-# although it is guaranteed that author names are unique, there is no such
-# guarantee for author_sort values. Showing duplicates won't break anything, but
-# it could lead to some confusion. When using 'author_sort', the tooltip will
-# show the author's name.
+#: Use author_sort and/or series_sort for names in Tag browser
+# Set which author or series field is used to display as the item name in the
+# Tag browser (the list of authors, series, publishers etc on the left hand
+# side). The choices for author are 'author' and 'author_sort'. The choices for
+# series are 'series' and 'series_sort'. This tweak affects only what is
+# displayed under the category in the Tag browser and Content server. Please
+# note that if you set this to …_sort, it is possible to see duplicate names in
+# the list because although it is guaranteed that author and series names are
+# unique, there is no such guarantee for their sort values. Showing duplicates
+# won't break anything but it could lead to some confusion. The tooltip for an
+# item will show the item's name no matter how you set this tweak.
 # Examples:
 #   categories_use_field_for_author_name = 'author'
 #   categories_use_field_for_author_name = 'author_sort'
+#   categories_use_field_for_series_name = 'series'
+#   categories_use_field_for_series_name = 'series_sort'
 categories_use_field_for_author_name = 'author'
+categories_use_field_for_series_name = 'series'
 
 #: Control partitioning of Tag browser
 # When partitioning the Tag browser, the format of the subcategory label is
@@ -143,22 +147,24 @@ sort_columns_at_startup = None
 #  A string controlling how the publication date is displayed in the GUI
 #  d     the day as number without a leading zero (1 to 31)
 #  dd    the day as number with a leading zero (01 to 31)
-#  ddd   the abbreviated localized day name (e.g. 'Mon' to 'Sun').
-#  dddd  the long localized day name (e.g. 'Monday' to 'Sunday').
+#  ddd   the abbreviated localized day name (e.g. 'Mon' to 'Sun')
+#  dddd  the long localized day name (e.g. 'Monday' to 'Sunday')
 #  M     the month as number without a leading zero (1-12)
 #  MM    the month as number with a leading zero (01-12)
-#  MMM   the abbreviated localized month name (e.g. 'Jan' to 'Dec').
-#  MMMM  the long localized month name (e.g. 'January' to 'December').
+#  MMM   the abbreviated localized month name (e.g. 'Jan' to 'Dec')
+#  MMMM  the long localized month name (e.g. 'January' to 'December')
 #  yy    the year as two digit number (00-99)
 #  yyyy  the year as four digit number
-#  h     the hours without a leading 0 (0 to 11 or 0 to 23, depending on am/pm) '
-#  hh    the hours with a leading 0 (00 to 11 or 00 to 23, depending on am/pm) '
-#  m     the minutes without a leading 0 (0 to 59) '
-#  mm    the minutes with a leading 0 (00 to 59) '
-#  s     the seconds without a leading 0 (0 to 59) '
-#  ss    the seconds with a leading 0 (00 to 59) '
-#  ap    use a 12-hour clock instead of a 24-hour clock, with "ap" replaced by the localized string for am or pm
-#  AP    use a 12-hour clock instead of a 24-hour clock, with "AP" replaced by the localized string for AM or PM
+#  h     the hours without a leading 0 (0 to 11 or 0 to 23, depending on am/pm)
+#  hh    the hours with a leading 0 (00 to 11 or 00 to 23, depending on am/pm)
+#  m     the minutes without a leading 0 (0 to 59)
+#  mm    the minutes with a leading 0 (00 to 59)
+#  s     the seconds without a leading 0 (0 to 59)
+#  ss    the seconds with a leading 0 (00 to 59)
+#  ap    use a 12-hour clock instead of a 24-hour clock, with "ap" replaced by the lowercase localized string for am or pm
+#  AP    use a 12-hour clock instead of a 24-hour clock, with "AP" replaced by the uppercase localized string for AM or PM
+#  aP    use a 12-hour clock instead of a 24-hour clock, with "aP" replaced by the localized string for am or pm
+#  Ap    use a 12-hour clock instead of a 24-hour clock, with "Ap" replaced by the localized string for AM or PM
 #  iso   the date with time and timezone. Must be the only format present
 #  For example, given the date of 9 Jan 2010, the following formats show
 #  MMM yyyy ==> Jan 2010    yyyy ==> 2010       dd MMM yyyy ==> 09 Jan 2010

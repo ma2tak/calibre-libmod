@@ -250,7 +250,7 @@ class SeriesEdit(LineEdit):
         val = str(self.text()).strip()
         try:
             series_index = float(val.rpartition('[')[-1].rstrip(']').strip())
-        except:
+        except Exception:
             series_index = 1.0
         series = val.rpartition('[')[0].strip() or val.rpartition('[')[-1].strip() or None
         mi.set(self.field, series)
@@ -508,6 +508,14 @@ class CompareSingle(QWidget):
                 m.actions()[0].setIcon(button.icon())
                 m.addAction(_('Merge tags')).triggered.connect(self.merge_tags)
                 m.actions()[1].setIcon(QIcon.ic('merge.png'))
+            elif field == 'comments':
+                button.m = m = QMenu(button)
+                button.setMenu(m)
+                button.setPopupMode(QToolButton.ToolButtonPopupMode.DelayedPopup)
+                m.addAction(button.toolTip()).triggered.connect(button.click)
+                m.actions()[0].setIcon(button.icon())
+                m.addAction(_('Merge Comments')).triggered.connect(self.merge_comments)
+                m.actions()[1].setIcon(QIcon.ic('merge.png'))
 
             if cls is CoverView:
                 neww.zoom_requested.connect(self.zoom_requested)
@@ -554,11 +562,16 @@ class CompareSingle(QWidget):
     def merge_tags(self):
         widgets = self.widgets['tags']
         neww, oldw = widgets[:2]
-        val = oldw.value
-        lval = {icu_lower(x) for x in val}
-        extra = [x for x in neww.value if icu_lower(x) not in lval]
+        lval = {icu_lower(x) for x in neww.value}
+        extra = [x for x in oldw.value if icu_lower(x) not in lval]
         if extra:
-            neww.value = val + extra
+            neww.value += extra
+
+    def merge_comments(self):
+        widgets = self.widgets['comments']
+        neww, oldw = widgets[:2]
+        val = oldw.current_val
+        neww.current_val = (neww.current_val or '') + '\n\n' + (val or '')
 
     def __call__(self, oldmi, newmi):
         self.current_mi = newmi

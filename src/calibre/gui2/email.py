@@ -153,25 +153,26 @@ def send_mails(jobnames, callback, attachments, to_s, subjects,
             attachments, to_s, subjects, texts, attachment_names):
         description = _('Email %(name)s to %(to)s') % dict(name=name, to=to)
         if isinstance(to, str) and (is_for_kindle(to) or '@pbsync.com' in to):
-            # The PocketBook service is a total joke. It cant handle
+            # The PocketBook service is a total joke. It can't handle
             # non-ascii, filenames that are long enough to be split up, commas, and
             # the good lord alone knows what else. So use a random filename
             # containing only 22 English letters and numbers
             #
             # And since this email is only going to be processed by automated
             # services, make the subject+text random too as at least the amazon
-            # service cant handle non-ascii text. I dont know what baboons
+            # service can't handle non-ascii text. I don't know what baboons
             # these companies employ to write their code. It's the height of
             # irony that they are called "tech" companies.
             # https://bugs.launchpad.net/calibre/+bug/1989282
-            from calibre.utils.short_uuid import uuid4
             if not is_for_kindle(to):
+                from calibre.utils.short_uuid import uuid4
                 # Amazon nowadays reads metadata from attachment filename instead of
-                # file internal metadata so dont nuke the filename.
+                # file internal metadata so don't nuke the filename.
                 # https://www.mobileread.com/forums/showthread.php?t=349290
                 aname = f'{uuid4()}.' + aname.rpartition('.')[-1]
-            subject = uuid4()
-            text = uuid4()
+            from calibre.utils.random_ua import random_english_text
+            subject = random_english_text(min_words_per_sentence=3, max_words_per_sentence=9, max_num_sentences=1).rstrip('.')
+            text = random_english_text()
         job = ThreadedJob('email', description, gui_sendmail, (attachment, aname, to,
                 subject, text), {}, callback)
         job_manager.run_threaded_job(job)
@@ -510,7 +511,7 @@ class EmailMixin:  # {{{
                 self.library_view.model().delete_books_by_id(remove)
                 self.iactions['Remove Books'].library_ids_deleted2(remove,
                                                             next_id=next_id)
-            except:
+            except Exception:
                 import traceback
 
                 # Probably the user deleted the files, in any case, failing

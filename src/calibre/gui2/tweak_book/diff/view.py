@@ -80,7 +80,7 @@ def beautify_text(raw, syntax):
         log.setLevel(logging.WARN)
         log.raiseExceptions = False
         parser = CSSParser(loglevel=logging.WARNING,
-                           # We dont care about @import rules
+                           # We don't care about @import rules
                            fetcher=lambda x: (None, None), log=_css_logger)
         data = parser.parseString(raw, href='<string>', validate=False)
         return serialize(data, 'text/css').decode('utf-8')
@@ -215,7 +215,7 @@ class TextBrowser(PlainTextEdit):  # {{{
             return
         try:
             lnum = int(self.line_number_map.get(block_number, ''))
-        except:
+        except Exception:
             lnum = 1
         for i, (num, text) in enumerate(self.headers):
             if num > block_number:

@@ -164,7 +164,7 @@ class PreserveViewState:  # {{{
     '''
     Save the set of selected books at enter time. If at exit time there are no
     selected books, restore the previous selection, the previous current index
-    and dont affect the scroll position.
+    and don't affect the scroll position.
     '''
 
     def __init__(self, view, preserve_hpos=True, preserve_vpos=True, require_selected_ids=True):
@@ -191,7 +191,7 @@ class PreserveViewState:  # {{{
             self.hscroll = view.horizontalScrollBar().value()
             ci = self.view.currentIndex()
             self.row, self.col = ci.row(), ci.column()
-        except:
+        except Exception:
             import traceback
             traceback.print_exc()
 
@@ -501,7 +501,7 @@ class BooksView(TableView):  # {{{
             return
         try:
             idx = self.column_map.index(column)
-        except:
+        except Exception:
             return
         h = view.column_header
 
@@ -993,7 +993,7 @@ class BooksView(TableView):  # {{{
                     ans = gprefs.get(name, None)
                     try:
                         del gprefs[name]
-                    except:
+                    except Exception:
                         pass
                     if ans is not None:
                         db.new_api.set_pref(name, ans)
@@ -1023,7 +1023,7 @@ class BooksView(TableView):  # {{{
                     if not isinstance(d, bool):
                         d = True if d == 0 else False
                     sh.append((c, d))
-            except:
+            except Exception:
                 # Ignore invalid tweak values as users seem to often get them
                 # wrong
                 print('Ignoring invalid sort_columns_at_startup tweak, with error:')
@@ -1237,9 +1237,7 @@ class BooksView(TableView):  # {{{
     @property
     def visible_columns(self):
         h = self.horizontalHeader()
-        logical_indices = (x for x in range(h.count()) if not h.isSectionHidden(x))
-        rmap = dict(enumerate(self.column_map))
-        return (rmap[h.visualIndex(x)] for x in logical_indices if h.visualIndex(x) > -1)
+        return (key for lidx,key in enumerate(self.column_map) if not h.isSectionHidden(lidx))
 
     def refresh_book_details(self, force=False):
         idx = self.currentIndex()
@@ -1475,7 +1473,7 @@ class BooksView(TableView):  # {{{
     def current_id(self):
         try:
             return self.model().id(self.currentIndex())
-        except:
+        except Exception:
             pass
         return None
 
@@ -1515,7 +1513,7 @@ class BooksView(TableView):  # {{{
                 continue
             try:
                 return self.model().id(self.model().index(i, column))
-            except:
+            except Exception:
                 pass
 
         # No unselected rows after the current row, look before
@@ -1524,7 +1522,7 @@ class BooksView(TableView):  # {{{
                 continue
             try:
                 return self.model().id(self.model().index(i, column))
-            except:
+            except Exception:
                 pass
         return None
 
